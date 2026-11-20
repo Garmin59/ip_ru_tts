@@ -1,5 +1,11 @@
 # README #
 
+### About
+
+This project make text to speech on the NUCLEO-G474RE microcontroller board.
+Based on the https://github.com/poretsky/ru_tts.git project.
+Not finished yet. In progress.
+
 ### Cmake preparing for VScode ###
 
 1. Install stlink utils st-flash.exe like C:\Program Files (x86)\stlink\bin and add to PATH
@@ -23,5 +29,5 @@ Install ST-link server https://www.st.com/en/development-tools/st-link-server.ht
 For starting the GDB Server use "st-util" in the DOS-Box.
 
 #### Versions:
-2025.04.06 Init version
+2025.04.06 Init version        
 
