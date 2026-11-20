@@ -2,7 +2,7 @@
 
 ### About
 
-This project make text to speech on the NUCLEO-G474RE microcontroller board.
+This project make text to speech in russian language on the NUCLEO-G474RE microcontroller board.
 Based on the https://github.com/poretsky/ru_tts.git project.
 Not finished yet. In progress.
 
