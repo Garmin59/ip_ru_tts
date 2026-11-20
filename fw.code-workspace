@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.h": "c",
+			"*.c": "c",
+			"type_traits": "c"
+		},
+		"cortex-debug.gdbPath.windows": "C:/GCC/ARM/15.2.1/bin/arm-none-eabi-gdb.exe",
+		"cortex-debug.openocdPath": "C:/Ilya/Install/xpack-openocd-0.12.0-1/bin/openocd.exe",
+		"cortex-debug.armToolchainPath": "C:/GCC/ARM/15.2.1/bin",
+		"cortex-debug.variableUseNaturalFormat": false
+	}
+}

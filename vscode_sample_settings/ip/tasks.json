@@ -1,0 +1,88 @@
+{
+	"version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: build",
+      "type": "cmake",
+      "command": "build",
+      "targets": [
+        "ALL_BUILD"
+      ],
+      "options": {
+        "cwd": "${workspaceRoot}/build"
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "flash",
+      "type": "shell",
+      "command": "st-flash",
+      "args": [
+        "--reset",
+//        "--format",
+//        "ihex",
+        "write",
+//        "${input:workspaceFolderForwardSlash}/build/asb_CAN_gateway.hex",
+        "${input:workspaceFolderForwardSlash}/build/IP_MCU_voice.bin",
+        "0x08000000"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "dependsOn": "CMake: build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "detail": "Builds project and flashes firmware."
+    },
+    {
+      "type": "shell",
+      "label": "erase",
+      "command": "st-flash",
+      "args": [
+        "--connect-under-reset",
+        "erase"
+      ],
+      "detail": "mass erase of chip"
+    },
+    {
+      "label": "Full coding",
+      "type": "shell",
+      "dependsOrder": "sequence",
+      "dependsOn": "CMake build",
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "command": "${workspaceRoot}/tools/encode_binary.bat",
+      "windows": {
+        "command": "${workspaceRoot}/tools/encode_binary.bat"
+      },
+      "group": "none",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "detail": "Make and post build commands to fill and code binary file"
+    }
+  ],
+	"inputs": [
+    {
+      "id": "workspaceFolderForwardSlash",
+      "type": "command",
+      "command": "extension.commandvariable.transform",
+      "args": {
+        "text": "${workspaceFolder}",
+        "find": "\\\\",
+        "replace": "/",
+        "flags": "g"
+      }
+    }
+  ]
+}

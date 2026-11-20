@@ -1,0 +1,119 @@
+{
+  "version": "0.2.0",
+  "configurations" : 
+  [
+    {
+      "name": "Debug stutil",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/build/IP_MCU_voice.elf",
+      "preLaunchTask": "CMake: build",
+      "preRestartCommands" : 
+      [ 
+        "load", 
+        "enable breakpoint", 
+        "monitor reset" 
+      ],
+      "serverpath": "C:/Program Files (x86)/stlink/bin/st-util.exe", 
+      "servertype": "stutil",
+      "device": "STM32F474RE",
+      "interface": "swd",
+      "serialNumber": "", 
+      "runToEntryPoint": "main",
+      "svdFile": "${workspaceRoot}/STM32G474xx.svd",
+      "svdPath" : "./STM32G474xx.svd",
+      //"showDevDebugOutput": "raw"
+    },
+    {
+      "name": "Debug openocd",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/build/IP_MCU_voice.elf",
+      "preLaunchTask": "CMake: build",
+      "showDevDebugOutput": "parsed",
+      "serverpath": "C:/Ilya/Install/xpack-openocd-0.12.0-1/bin/openocd.exe",
+      "servertype": "openocd",
+      "device": "STM32F474RE",
+      "interface": "swd",
+      //"serialNumber": "0045003F3431511537393330",
+      //"serialNumber": "49FF6B064983514938202587",
+      "runToEntryPoint": "main",
+      "svdFile": "STM32G474xx.svd",
+      "svdPath" : "STM32G474xx.svd",
+      "configFiles": 
+      [
+        "interface/stlink.cfg",
+        "target/stm32g4x.cfg"
+      ],
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": 1
+      },
+      "swoConfig":
+      {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 160000000,
+        "decoders": 
+        [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "SWO output",
+            "encoding":"ascii",
+            "showOnStartup": true,
+            "timestamp": false
+          }
+        ]
+      }
+    },
+    {
+      "name" : "Debug (ocd/stlink)",
+      "cwd" : "${workspaceRoot}",
+      "executable" : "${workspaceRoot}/build/IP_MCU_voice.elf",        
+      "interface": "swd",
+      "request" : "launch",
+      "type" : "cortex-debug",
+      "servertype" : "openocd",
+      "device" : "STM32F474RE",
+      "preLaunchTask" : "CMake: build",
+      "preLaunchCommands" : [ "monitor arm semihosting enable" ],
+      "preRestartCommands" : [ "load", "enable breakpoint", "monitor reset" ],        
+      "runToEntryPoint" : "main",        
+      //"showDevDebugOutput" : "raw",
+      "svdFile" : "STM32G474xx.svd",
+      "svdPath" : "STM32G474xx.svd",
+      //"liveWatch": { "enabled": true, "samplesPerSecond": 4 },
+      "configFiles": 
+      [
+        "interface/stlink.cfg",
+        "target/stm32g4x.cfg"
+      ],  
+      "liveWatch": {
+        "enabled": true,
+        "samplesPerSecond": 1
+      },
+      "swoConfig":
+      {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 160000000,
+        "decoders": 
+        [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "SWO output",
+            "encoding":"ascii",
+            "showOnStartup": true,
+            "timestamp": false
+          }
+        ]
+      }    
+    }
+  ]
+}

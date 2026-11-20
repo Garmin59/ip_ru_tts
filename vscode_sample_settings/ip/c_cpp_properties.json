@@ -1,0 +1,36 @@
+{
+  "env": {
+    "defaultIncludePath": [
+        "C:/Ilya/ARM_toolchain/11.3.1/arm-none-eabi/include",
+        "C:/Ilya/ARM_toolchain/11.3.1/arm-none-eabi/include/c++/**"
+    ],
+    "defaultDefines": [ "__GNUC__", "USE_HAL_DRIVER", "STM32G474xx" ],
+    "compiler": "C:/Ilya/ARM_toolchain/11.3.1/bin/arm-none-eabi-gcc.exe"
+    //"compiler": "C:/GCC/ARM/14.2_rel1/bin/arm-none-eabi-gcc.exe"
+  },    
+  "configurations": [
+    {
+      "name": "STM32",
+      "includePath": [
+        "Core/Inc",
+        "Drivers/CMSIS/Include",
+        "Drivers/STM32G4xx_HAL_Driver/Inc",
+        "Drivers/STM32G4xx_HAL_Driver/Inc/Legacy",
+        "FreeRTOS/include",
+        "FreeRTOS/portable",
+        "Sources",
+        "Tasks/Inc"
+      ],
+      "defines": [
+        "STM32G474xx",
+        "SWO_DEBUG",
+        "USE_FULL_LL_DRIVER",
+        "USE_HAL_DRIVER",
+        "__VFP_FP__"
+      ],
+      "compilerPath": "C:/Ilya/ARM_toolchain/11.3.1/bin/arm-none-eabi-gcc.exe"
+      //"compilerPath": "C:/GCC/ARM/14.2_rel1/bin/arm-none-eabi-gcc.exe"
+    }
+  ],
+  "version": 4
+}

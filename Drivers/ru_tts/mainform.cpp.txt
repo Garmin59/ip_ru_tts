@@ -1,0 +1,553 @@
+//---------------------------------------------------------------------------
+
+#include <vcl.h>
+#pragma hdrstop
+
+#include "mainform.h"
+#include "ru_tts.h"
+#include <stdint.h>
+#include "transcription.h"
+#include "synth.h"
+#include "sink.h"
+#include "soundscript.h"
+#include <vector>
+#include <string.h>
+//---------------------------------------------------------------------------
+#pragma package(smart_init)
+#pragma resource "*.dfm"
+TForm1 *Form1;
+//---------------------------------------------------------------------------
+__fastcall TForm1::TForm1(TComponent* Owner)
+        : TForm(Owner)
+{
+}
+//---------------------------------------------------------------------------
+//void
+TStream* fs;
+
+ttscb_t ttscb;  //определим её здесь, чтобы посмотреть немножко потрохов
+
+std::vector<sound_unit_t> sounds; //насквозь вообще все
+std::vector<icb_t> intonations; //также насквозь
+
+int TotalSoundCount;
+
+char* Win1251toKoi8(char *src)
+{
+    wchar_t *str_unicode = NULL;
+    char * str_KOI;
+    int size = MultiByteToWideChar(1251, 0, src, -1, str_unicode, 0);
+    if (size){
+        str_unicode = new wchar_t[size];
+        if (MultiByteToWideChar(1251, 0, src, -1, str_unicode, size)){
+            size = WideCharToMultiByte(20866, 0, str_unicode, -1, str_KOI,0, NULL, NULL);
+            if (size){
+                str_KOI = new char[size];
+                size = WideCharToMultiByte(20866, 0, str_unicode, -1, str_KOI, size, NULL, NULL);
+            }
+        }
+    }
+    return str_KOI;
+}
+
+static int wave_consumer(void *buffer, size_t size, void *user_data)
+{
+  int *rc = (int*) user_data;
+  *rc = (fs->Write(buffer, size) != size);
+//  if (*rc)
+//    throw new Exception("не удалось записать в файл");
+  return *rc;
+}
+
+const char* phonems[] = {
+    "У", "О", "А", "Э", "Ы", "И", "В", "З", "Р", "Ж", "Й", "В'", "З'", "Р'",
+    "Л", "М", "Н", "Л'", "М'", "Н'", "Б", "Д", "Г", "Б'", "Д'", "Г'", "П",
+    "Т", "К", "П'", "Т'", "К'", "Ц", "Ч", "Ф", "С", "Ш", "Ф'", "С'", "Щ", "Х",
+    "(41)", "(42)", " ", ",", ".", "(46)", "(47)", "(48)", "!", "(50)",
+    "(51)", "(52)", "-" };
+
+const char* WFs[] = {
+    "ударная У после гласных и твёрдых согласных", //0
+    "ударная О после гласных и твёрдых согласных",  //1
+    "ударная А после гласных и твёрдых согласных",  //2
+    "ударная Э после гласных и твёрдых согласных",  //3
+    "ударная Ы после гласных и твёрдых согласных (тогда И тоже сюда)",  //4
+    "ударная У после мягких согласных", //5
+    "ударная О после мягких согласных", //6
+    "ударная А после мягких согласных", //7
+    "ударная Э после мягких согласных", //8
+    "ударная И после гласных", //9
+    "У после ВМБПФ", //10
+    "О  после ВМБПФ", //11
+    "А после ВМБПФ", //12
+    "Э после ВМБПФ", //13
+    "Ы,И после ВМБПФ", //14
+    "У перед ВМБПФ", //15
+    "О перед ВМБПФ", //16
+    "А перед ВМБПФ", //17
+    "Э перед ВМБПФ", //18
+    "Ы,И перед ВМБПФ", //19
+    "У после ЗРЖНДТСШ", //20
+    "О после ЗРЖНДТСШ", //21
+    "А после ЗРЖНДТСШ", //22
+    "Э после ЗРЖНДТСШ", //23
+    "Ы,И после ЗРЖНДТСШ", //24
+    "У перед ЗРЖНДТСШ", //25
+    "О перед ЗРЖНДТСШ", //26
+    "А перед ЗРЖНДТСШ", //27
+    "Э перед ЗРЖНДТСШ", //28
+    "Ы,И перед ЗРЖНДТСШ", //29
+    "У после ГКХ", //30
+    "О после ГКХ", //31
+    "А после ГКХ", //32
+    "Э после ГКХ", //33
+    "Ы,И после ГКХ", //34
+    "У перед ГКХ", //35
+    "О перед ГКХ", //36
+    "А перед ГКХ", //37
+    "Э перед ГКХ", //38
+    "Ы,И перед ГКХ", //39
+    "У после Л", //40
+    "О после Л", //41
+    "А после Л", //42
+    "Э после Л", //43
+    "Ы,И после Л", //44
+    "У перед Л", //45
+    "О перед Л", //46
+    "А перед Л", //47
+    "Э перед Л", //48
+    "Ы,И перед Л", //49
+    "У после В',М',Б',П',Ф'", //50
+    "О после В',М',Б',П',Ф'", //51
+    "А после В',М',Б',П',Ф'", //52
+    "Э после В',М',Б',П',Ф'", //53
+    "Ы,И после В',М',Б',П',Ф'", //54
+    "У перед В',М',Б',П',Ф'", //55
+    "О перед В',М',Б',П',Ф'", //56
+    "А перед В',М',Б',П',Ф'", //57
+    "Э перед В',М',Б',П',Ф'", //58
+    "Ы,И перед В',М',Б',П',Ф'", //59
+    "У после З',Р',Н',Д',Т',С'", //60
+    "О после З',Р',Н',Д',Т',С'", //61
+    "А после З',Р',Н',Д',Т',С'", //62
+    "Э после З',Р',Н',Д',Т',С'", //63
+    "Ы,И после З',Р',Н',Д',Т',С'", //64
+    "У перед З',Р',Н',Д',Т',С'", //65
+    "О перед З',Р',Н',Д',Т',С'", //66
+    "А перед З',Р',Н',Д',Т',С'", //67
+    "Э перед З',Р',Н',Д',Т',С'", //68
+    "Ы,И перед З',Р',Н',Д',Т',С'", //69
+    "У после Й,Г',К',Х'", //70
+    "О после Й,Г',К',Х'", //71
+    "А после Й,Г',К',Х'", //72
+    "Э после Й,Г',К',Х'", //73
+    "Ы,И после Й,Г',К',Х'", //74
+    "У перед Й,Г',К',Х'", //75
+    "О перед Й,Г',К',Х'", //76
+    "А перед Й,Г',К',Х'", //77
+    "Э перед Й,Г',К',Х'", //78
+    "Ы,И перед Й,Г',К',Х'", //79
+    "У после Л'", //80
+    "О после Л'", //81
+    "А после Л'", //82
+    "Э после Л'", //83
+    "Ы,И после Л'", //84
+    "У перед Л'", //85
+    "О перед Л'", //86
+    "А перед Л'", //87
+    "Э перед Л'", //88
+    "Ы,И перед Л'", //89
+    "У после/перед паузой", //90
+    "О после/перед паузой", //91
+    "А после/перед паузой", //92
+    "Э после/перед паузой", //93
+    "Ы после/перед паузой", //94
+    "У после гласных или (stage=3) твёрдых согласных", //95
+    "О после гласных или (stage=3) твёрдых согласных", //96
+    "А после гласных или (stage=3) твёрдых согласных", //97
+    "Э после гласных или (stage=3) твёрдых согласных", //98
+    "Ы после гласных или (stage=3, И=Ы) твёрдых согласных", //99
+    "У после мягких согласных", //100
+    "О после мягких согласных", //101
+    "А после мягких согласных", //102
+    "Э после мягких согласных", //103
+    "Ы после мягких согласных, И после гласных", //104
+    "В перед/после согласной", //105
+    "З перед/после согласной", //106
+    "Р перед/после согласной", //107
+    "Ж перед/после согласной", //108
+    "Й перед/после согласной", //109
+    "В' перед/после согласной", //110
+    "З' перед/после согласной", //111
+    "Р' перед/после согласной", //112
+    "(113)", //113
+    "(114)", //114
+    "(115)", //115
+    "(116)", //116
+    "(117)", //117
+    "(118)", //118
+    "(119)", //119
+    "(120)", //120
+    "(121)", //121
+    "основной ударный Й", //122
+    "основной В", //123
+    "основной З", //124
+    "основной Р", //125
+    "основной Ж", //126
+    "основной Й", //127
+    "основной В'", //128
+    "основной З'", //129
+    "основной Р'", //130
+    "(131)", //131
+    "(132)", //132
+    "Л", //133
+    "М", //134
+    "Н", //135
+    "Л'", //136
+    "М'", //137
+    "Н'", //138
+    "Б, Бэ, Бы, Би",//139
+    "Д, Дэ, Ды, Ди", //140
+    "Г, Гэ, Гы, Ги", //141
+    "Б'", //142
+    "Д'", //143
+    "Г'", //144
+    "П, Пэ, Пы, Пи", //145
+    "Т, Тэ, Ты, Ти", //146
+    "К, Кэ, Кы, Ки", //147
+    "П'", //148
+    "Т'", //149
+    "К'", //150
+    "Ба", //151
+    "Да", //152
+    "Га", //153
+    "Бо, Бу", //154
+    "До, Ду", //155
+    "Го, Гу", //156
+    "Па", //157
+    "Та", //158
+    "Ка", //159
+    "Пу", //160
+    "Ту", //161
+    "Ку", //162
+    "предв Б", //163
+    "предв Д", //164
+    "предв Г", //165
+    "предв Б'", //166
+    "предв Д'", //167
+    "предв Г'", //168
+    "предв П (тишина)", //169
+    "предв Т (тишина)", //170
+    "предв К (тишина)", //171
+    "предв П' (тишина)", //172
+    "предв Т' (тишина)", //173
+    "предв К' (тишина)", //174
+    "тишина перед Ц", //175
+    "тишина перед Ч", //176
+    "Ц", //177
+    "Ч", //178
+    "Ф", //179
+    "С", //180
+    "Ш", //181
+    "Ф'",//182
+    "С'",//183
+    "Щ",//184
+    "Х, ХЭ, ХЫ,ХИ",//185
+    "Х'", //186
+    "Ха", //187
+    "Ху, Хо", //188
+    "другие знаки препинания (тишина)", //189
+    "пробел (тишина)", //190
+    "конец фразы", //191
+    "(192)",//192
+    "(193)",//193
+    "(194)",//194
+    "(195)",//195
+    "(196)",//196
+    "(197)",//197
+    "(198)",//198
+    "(199)",//199
+    "(200)",//200
+    "(201)",//201
+    };
+
+
+
+//неправильно назвал вообще-то: там же не только по overflow, но и по flush срабатывает, короче, рано или поздно через неё всё и пройдёт.
+//короче, эта штука смотрит формирование транскрипций и пытается их в понятной форме отобразить.
+int transcription_out_function(void *buffer, size_t size, void *user_data)
+{
+    char *buf = (char *) buffer;
+    AnsiString str = "";
+    for (int i=0; i<size; i++){
+        str = str + phonems[buf[i]];
+    }
+    Form1->txtTranscript->Lines->Add(str);
+    return 0;
+}
+
+
+int populateVectors (void *buffer, size_t size, void *user_data)
+{
+    //будет вызываться когда мы синтезируем данные для микроконтроллера
+    //ах да, нельзя нам уродовать эти данные!
+    for (int i=0; i<ttscb.script.length; i++){
+        ttscb.script.sounds[i].stage += intonations.size(); //т.е когда у нас пошла вторая фраза, и у нас уже сидит 12 "интонаций", мы сменим индекс с 0 на 12.
+        sounds.push_back(ttscb.script.sounds[i]);
+        ttscb.script.sounds[i].stage -= intonations.size(); //т.е когда у нас пошла вторая фраза, и у нас уже сидит 12 "интонаций", мы сменим индекс с 0 на 12.
+    }
+    for (int i=0; i<NSTAGES; i++){
+        intonations.push_back(ttscb.script.icb[i]);
+    }
+
+}
+//продолжаем костылять. Лениво было ещё один тип функций объявлять. Короче, когда оно вызывается, мы лезем не в буфер, а в soundscript.
+int beforeMakeSound (void *buffer, size_t size, void *user_data)
+{
+    AnsiString tmp;
+    int8_t stageUsed[12];
+    memset (stageUsed, 0, 12);
+    int8_t TruncatedBigChunks = 0;
+    int16_t scnt;
+
+    TotalSoundCount +=ttscb.script.length;
+    Form1->txtSoundscript->Lines->Add("");
+    Form1->txtSoundscript->Lines->Add("");
+    Form1->txtSoundscript->Lines->Add("---- Новая фраза ----");
+
+
+    for (int i=0; i<ttscb.script.length; i++){
+        tmp.sprintf("ВФ %d (%s), длительность %d, интон отрезок %d", ttscb.script.sounds[i].id, WFs[ttscb.script.sounds[i].id], ttscb.script.sounds[i].duration, ttscb.script.sounds[i].stage);
+        Form1->txtSoundscript->Lines->Add(tmp);
+        stageUsed[ttscb.script.sounds[i].stage] = 1;
+        if (ttscb.script.sounds[i].id < 169) {
+            scnt = ttscb.script.voice->sound_lengths[ttscb.script.sounds[i].id];
+            if ((scnt!=51)&&(scnt!=101)&&(ttscb.script.sounds[i].duration < scnt))
+                TruncatedBigChunks = 1;
+        }
+    }
+    Form1->txtSoundscript->Lines->Add("");
+    if(TruncatedBigChunks != 0)
+        Form1->txtSoundscript->Lines->Add("Часть согласных звуков, не участвующих в тонообразовании, была обрезана");
+    Form1->txtSoundscript->Lines->Add("--- интонационные отрезки ---");
+    for (int i=0; i<12; i++){
+        if (stageUsed[i]) {
+            tmp.sprintf("Интон. отрезок %d: исх тон %d (в сэмплах), дельта %d, период %d", i, ttscb.script.icb[i].stretch, ttscb.script.icb[i].delta, ttscb.script.icb[i].period);
+            Form1->txtSoundscript->Lines->Add(tmp);
+        }
+    }
+
+    //а теперь будем наполнять вектор
+    for (int i=0; i<ttscb.script.length; i++){
+        sounds.push_back(ttscb.script.sounds[i]);
+    }
+
+
+
+    return 0;
+}
+
+//extern "C" void sink_setup(sink_t *consumer, void *buffer, size_t bufsize, ru_tts_callback function, void *user_data);
+/*
+void my_own_sink_setup (sink_t *consumer, void *buffer, size_t bufsize, ru_tts_callback function, void *user_data)
+{
+  consumer->buffer = buffer;
+  consumer->buffer_offset = 0;
+  consumer->bufsize = bufsize;
+  consumer->status = 0;
+  consumer->user_data = user_data;
+  consumer->function = function;
+  consumer->custom_reset = NULL;
+}
+  */
+void ConvertToKoi8 (){
+//    Form1->txtKoi8->Text = AnsiString(Win1251toKoi8(Form1->txtSourceText->Text.c_str()));
+    char * src;
+    char * dest;
+    for (int i=0; i<Form1->txtSourceText->Lines->Count; i++){
+        src = strdup(Form1->txtSourceText->Lines->Strings[i].c_str());
+        dest = Win1251toKoi8(src);
+        Form1->txtKoi8->Lines->Add(AnsiString(dest));
+//        Form1->txtKoi8->Lines->Add(AnsiString(Win1251toKoi8(Form1->txtSourceText->Lines->Strings[i].c_str())));
+    }
+}
+
+void MakeTranscript(){
+
+}
+
+void analyzeUsedSamples()
+{
+    int curCnt;
+    for (int i = 0; i < 169; i++){  //идём по ВФ
+        curCnt = 0;
+        for (int j = ttscb.script.voice->sound_offsets[i]; j < ttscb.script.voice->sound_offsets[i+1]; j++) {
+            if (used_samples[j])
+                curCnt++;
+        }
+//        Form1->txtTranscript->Lines->Add("ВФ "+IntToStr(i)+": "+IntToStr(curCnt)+" сэмплов");
+        Form1->txtTranscript->Lines->Add(IntToStr(i)+"\t"+IntToStr(curCnt));
+    }
+}
+
+void __fastcall TForm1::btnProcessClick(TObject *Sender)
+{
+        switch (rgWhereToStart->ItemIndex){
+            case 0:
+                txtKoi8->Clear();
+                ConvertToKoi8();  //не нужен break, продолжаем!
+            case 1:
+                txtTranscript->Clear();
+                MakeTranscript(); //и здесь не нужен.
+            case 2:     //а тут у нас пока нестыковочка - у нас есть числовое представление транскрипции, и пока не существующее текстовое.
+                break;
+        }
+        txtSoundscript->Clear();
+
+
+        TotalSoundCount = 0;
+
+
+        char wave[4096];
+        int write_error;
+        char* inp;
+
+        AnsiString dst;
+        char* res;
+
+        fs = new TFileStream("output.raw", fmCreate);
+
+        inp = strdup(txtKoi8->Text.c_str());
+
+        //don't you dare
+        ru_tts_conf_t default_config;
+        ru_tts_config_init(&default_config);
+        if (rgVoiceMaleOrFemale->ItemIndex == 1)
+                default_config.flags |= USE_ALTERNATIVE_VOICE;
+
+        default_config.speech_rate = StrToInt(txtSpeed->Text);
+        default_config.voice_pitch = StrToInt(txtVoicePitch->Text);                
+        default_config.intonation = StrToInt(txtIntonation->Text);
+
+        //изучаем, сколько сэмплов в итоге применили?
+        used_samples_count = 0;
+        used_samples = (int8_t *) malloc (30000);   //пофиг, там мужской голос побольше, женский поменьше)
+
+
+        ttscb.beforeMakeSound = beforeMakeSound;
+        ru_tts_transfer(&default_config, &ttscb, inp, wave, sizeof(wave), wave_consumer, &write_error); //это всё за один раз. Хорошо, работает, но хотим понять, что на каждом шагу происходит.
+
+        uint8_t *transcription_buffer = (uint8_t *) malloc(TRANSCRIPTION_BUFFER_SIZE);
+        ttscb_t ttscb;
+        sink_t transcription_consumer;
+        sink_setup(&transcription_consumer, transcription_buffer, TRANSCRIPTION_MAXLEN, transcription_out_function, &ttscb);
+
+        txtTranscript->Lines->Add("После транскрипции:");
+        process_text(inp, &transcription_consumer);
+
+        txtTranscript->Lines->Add("Количество сэмплов использовано: "+IntToStr(used_samples_count));
+        analyzeUsedSamples();
+/*
+        for (int i=0; i<transcription_consumer.buffer_offset; i++){
+            Memo2->Lines->Add(IntToStr(transcription_buffer[i]));
+        }
+*/
+        free(transcription_buffer);
+
+        free(used_samples);
+
+        //попробуем отдельные звуки сгенерить, "синтетические".
+        soundscript_t sound;
+        sound.voice = &female;
+        sound.length = 12;
+        for (int i=0; i<12; i++){
+            sound.sounds[i].id = 177+i;
+            sound.sounds[i].duration = 20000;
+            sound.sounds[i].stage = 0;
+        }
+
+        sink_t wave_sink;
+        sink_setup(&wave_sink, wave, sizeof(wave), wave_consumer, &write_error);
+
+        make_sound(&sound, &wave_sink);
+         txtSoundscript->Lines->Add("Общее количество ВФ: "+IntToStr(TotalSoundCount));
+
+        delete fs;
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm1::btnCodeForMCUClick(TObject *Sender)
+{
+    //тут мы считаем, что одна строка = одна фраза. Пусть даже эта штуковина поделит на большее число фраз,
+    //а нам похрен.
+    switch (rgWhereToStart->ItemIndex){
+        case 0:
+            txtKoi8->Clear();
+            ConvertToKoi8();  //не нужен break, продолжаем!
+        case 1:
+            txtTranscript->Clear();
+            MakeTranscript(); //и здесь не нужен.
+        case 2:     //а тут у нас пока нестыковочка - у нас есть числовое представление транскрипции, и пока не существующее текстовое.
+            break;
+    }
+    txtSoundscript->Clear();
+
+    ru_tts_conf_t default_config;
+    ru_tts_config_init(&default_config);
+    if (rgVoiceMaleOrFemale->ItemIndex == 1)
+        default_config.flags |= USE_ALTERNATIVE_VOICE;
+
+    default_config.speech_rate = StrToInt(txtSpeed->Text);
+    default_config.voice_pitch = StrToInt(txtVoicePitch->Text);
+    default_config.intonation = StrToInt(txtIntonation->Text);
+
+    int previousDummy;
+    char* inp;
+    char wave[4096];
+    int write_error;
+
+    used_samples_count = 0;
+    used_samples = (int8_t *) malloc (30000);   //пофиг, там мужской голос побольше, женский поменьше)
+
+    fs = new TFileStream("output.raw", fmCreate);
+    TStream* textfile;
+    textfile = new TFileStream("voice.bin", fmCreate);
+
+    ttscb.beforeMakeSound = populateVectors;
+
+    for (int i=0; i<txtKoi8->Lines->Count; i++) {
+        ttscb.script.sounds[0].id = 255;    //фиктивное значение
+        ttscb.script.sounds[0].stage = 0;   //по идее можем что хотим, ну пущай так
+        ttscb.script.sounds[0].duration = 0;    //вот тут мы хотим длину следующего отрезка зафигачить
+        sounds.push_back(ttscb.script.sounds[0]);   //первое фиктивное значение.
+        previousDummy = sounds.size()-1;
+
+        inp = strdup(txtKoi8->Lines->Strings[i].c_str());
+        ru_tts_transfer(&default_config, &ttscb, inp, wave, sizeof(wave), wave_consumer, &write_error); //это всё за один раз. Хорошо, работает, но хотим понять, что на каждом шагу происходит.
+
+        sounds[previousDummy].duration = sounds.size() - 1 - previousDummy;
+        //пока так
+    }
+    //и под самый конец ещё одного болвана надо
+    ttscb.script.sounds[0].id = 255;
+    ttscb.script.sounds[0].stage = 0;
+    ttscb.script.sounds[0].duration = 0;
+    sounds.push_back(ttscb.script.sounds[0]);
+
+    //теперь нужно отобрать лишь нужные нам. Или сделаем это не здесь??
+    //из дельфы хотя бы female.dat / male.dat откроются? Да вроде бы, ну по кр. мере не ругаются.
+    textfile->Write(&sounds[0],sounds.size()*sizeof(sound_unit_t));
+
+    //а теперь давайте интонации сюда запишем, причём сначала их количество, а потом уже их самих
+    int intonationCount = intonations.size();
+    textfile->Write(&intonationCount, sizeof(intonationCount));
+    textfile->Write(&intonations[0], intonations.size()*sizeof(icb_t));
+
+
+    delete fs;
+
+    delete textfile;
+}
+//---------------------------------------------------------------------------
+

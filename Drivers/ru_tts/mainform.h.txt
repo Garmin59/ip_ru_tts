@@ -1,0 +1,46 @@
+//---------------------------------------------------------------------------
+
+#ifndef mainformH
+#define mainformH
+//---------------------------------------------------------------------------
+#include <Classes.hpp>
+#include <Controls.hpp>
+#include <StdCtrls.hpp>
+#include <Forms.hpp>
+#include <ExtCtrls.hpp>
+#include <ComCtrls.hpp>
+#include <MPlayer.hpp>
+//---------------------------------------------------------------------------
+class TForm1 : public TForm
+{
+__published:	// IDE-managed Components
+        TPanel *Panel1;
+        TButton *btnProcess;
+        TPanel *Panel2;
+    TPageControl *PageControl1;
+    TTabSheet *TabSheet1;
+    TMemo *txtSourceText;
+    TTabSheet *TabSheet2;
+    TMemo *txtKoi8;
+    TTabSheet *TabSheet3;
+    TMemo *txtTranscript;
+    TRadioGroup *rgWhereToStart;
+        TRadioGroup *rgVoiceMaleOrFemale;
+    TTabSheet *TabSheet4;
+    TMemo *txtSoundscript;
+    TLabeledEdit *txtSpeed;
+    TLabeledEdit *txtVoicePitch;
+    TLabeledEdit *txtIntonation;
+    TTabSheet *TabSheet5;
+    TMemo *memoCode;
+    TButton *btnCodeForMCU;
+        void __fastcall btnProcessClick(TObject *Sender);
+    void __fastcall btnCodeForMCUClick(TObject *Sender);
+private:	// User declarations
+public:		// User declarations
+        __fastcall TForm1(TComponent* Owner);
+};
+//---------------------------------------------------------------------------
+extern PACKAGE TForm1 *Form1;
+//---------------------------------------------------------------------------
+#endif
